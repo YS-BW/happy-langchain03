@@ -3,6 +3,9 @@ from operator import itemgetter
 from typing import Dict, List, Optional, Sequence
 
 from langchain_deepseek import ChatDeepSeek
+from langchain_ollama import ChatOllama
+
+import ollama
 from pydantic import BaseModel
 
 
@@ -206,14 +209,21 @@ def create_chain(llm: LanguageModelLike, retriever: BaseRetriever) -> Runnable:
     def cohere_response_synthesizer(input: dict) -> RunnableSequence:
         return cohere_prompt | llm.bind(source_documents=input["docs"])
 
+
+    
+    
     response_synthesizer = (
         default_response_synthesizer.configurable_alternatives(
             ConfigurableField("llm"),
-            default_key="openai_gpt_3_5_turbo",
-            anthropic_claude_3_haiku=default_response_synthesizer,
-            fireworks_mixtral=default_response_synthesizer,
-            google_gemini_pro=default_response_synthesizer,
-            cohere_command=cohere_response_synthesizer,
+            # default_key="openai_gpt_3_5_turbo",
+            # anthropic_claude_3_haiku=default_response_synthesizer,
+            # fireworks_mixtral=default_response_synthesizer,
+            # google_gemini_pro=default_response_synthesizer,
+            # cohere_command=cohere_response_synthesizer,
+            # 使用特定的模型实例
+            ollama_qwen_chat= prompt | ollama_qwen2,
+            ollama_qwen3_chat= prompt | ollama_qwen3,
+            deepseek_chat= prompt | llm,
         )
         | StrOutputParser()
     ).with_config(run_name="GenerateResponse")
@@ -223,9 +233,23 @@ def create_chain(llm: LanguageModelLike, retriever: BaseRetriever) -> Runnable:
         | response_synthesizer
     )
 
+
+# 创建模型实例
+# 当前使用的 DeepSeek 模型
 llm = ChatDeepSeek(
     model = "deepseek-chat"
 )
+    # 创建特定的模型实例
+# 添加 Ollama 模型实例
+ollama_qwen2 = ChatOllama(
+    model="qwen2.5:1.5b",
+    temperature=0.7
+)
+ollama_qwen3 = ChatOllama(
+    model="qwen3:1.7b",
+    temperature=0.7
+)
+
 
 
 retriever = get_retriever()
