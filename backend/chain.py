@@ -143,6 +143,7 @@ def create_retriever_chain(
         run_name="CondenseQuestion",
     )
     conversation_chain = condense_question_chain | retriever
+    # 函数判断是否需要考虑聊天历史
     return RunnableBranch(
         (
             RunnableLambda(lambda x: bool(x.get("chat_history"))).with_config(
@@ -166,6 +167,7 @@ def format_docs(docs: Sequence[Document]) -> str:
         formatted_docs.append(doc_string)
     return "\n".join(formatted_docs)
 
+# 负责将前端传过来的历史记录转换成langchain的格式
 
 def serialize_history(request: ChatRequest):
     chat_history = request["chat_history"] or []
