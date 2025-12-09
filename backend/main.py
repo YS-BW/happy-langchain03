@@ -36,6 +36,7 @@ async def chat_stream(request: ChatRequest):
             stream_mode="updates",
             stream_subgraphs=True
         ):
+            
             chunk_data = {
                 "type": "chunk",
                 "data": chunk,
@@ -71,9 +72,12 @@ async def chat_stream(request: ChatRequest):
             {"messages": [{"role": "user", "content": request.question}]},
             stream_mode="messages"
         ):
+            node = metadata['langgraph_node']
+            
             for block in token_chunk.content_blocks:
-                if block["type"] == "text":
-                    yield f"data: {json.dumps({'text': block['text']})}\n\n"
+                if node == "model":
+                    if block["type"] == "text":
+                        yield f"data: {json.dumps({'text': block['text']})}\n\n"
         yield "data: [DONE]\n\n"
     
     return StreamingResponse(gen(), media_type="text/event-stream")

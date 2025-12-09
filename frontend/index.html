@@ -3,7 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RAG Chat - 流式输出测试</title>
+    <title>ChatGPT - RAG Assistant</title>
+    <!-- Markdown渲染库 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.0.0/marked.min.js"></script>
+    <!-- Emoji支持 -->
+    <script src="https://cdn.jsdelivr.net/npm/emoji-js@3.7.0/lib/emoji.min.js"></script>
+    <!-- 代码高亮 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -11,46 +18,128 @@
             box-sizing: border-box;
         }
 
-        body {
-            font-family: 'Google Sans', 'Segoe UI', system-ui, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            min-height: 100vh;
-            color: #e4e4e7;
+        :root {
+            --bg-primary: #343541;
+            --bg-secondary: #202123;
+            --bg-chat: #343541;
+            --text-primary: #ECECF1;
+            --text-secondary: #C5C5D2;
+            --border-color: #4D4D4F;
+            --user-bg: #343541;
+            --assistant-bg: #444654;
+            --hover-bg: #2A2B32;
+            --accent-color: #19C37D;
         }
 
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 20px;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* 侧边栏样式 */
+        .sidebar {
+            width: 260px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
+            transition: transform 0.3s ease;
         }
 
-        header {
-            text-align: center;
-            padding: 20px 0;
+        .sidebar-header {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
         }
 
-        header h1 {
-            font-size: 1.8rem;
-            background: linear-gradient(90deg, #8b5cf6, #06b6d4);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+        .new-chat-btn {
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .new-chat-btn:hover {
+            background: var(--hover-bg);
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .sidebar-footer {
+            padding: 12px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .settings-section {
+            margin-bottom: 12px;
+        }
+
+        .settings-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .api-select {
+            width: 100%;
+            padding: 8px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        /* 主聊天区域 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-chat);
+        }
+
+        .chat-header {
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .model-indicator {
+            font-size: 14px;
+            color: var(--text-secondary);
         }
 
         .chat-container {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 16px;
-            margin-bottom: 20px;
+            padding-bottom: 20px;
         }
 
-        .message {
-            margin-bottom: 16px;
+        .message-wrapper {
+            width: 100%;
+            border-bottom: 1px solid var(--border-color);
             animation: fadeIn 0.3s ease;
         }
 
@@ -59,36 +148,93 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .message.user {
-            text-align: right;
+        .message-wrapper.user {
+            background: var(--user-bg);
         }
 
-        .message.user .bubble {
-            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-            margin-left: auto;
+        .message-wrapper.assistant {
+            background: var(--assistant-bg);
         }
 
-        .message.assistant .bubble {
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        .message {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 24px 20px;
+            display: flex;
+            gap: 20px;
         }
 
-        .bubble {
-            display: inline-block;
-            max-width: 80%;
-            padding: 12px 18px;
-            border-radius: 18px;
-            line-height: 1.6;
+        .avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .avatar.user {
+            background: #5436DA;
+        }
+
+        .avatar.assistant {
+            background: var(--accent-color);
+        }
+
+        .message-content {
+            flex: 1;
+            line-height: 1.7;
             word-wrap: break-word;
+        }
+
+        .message-content p {
+            margin-bottom: 1em;
+        }
+
+        .message-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        .message-content pre {
+            background: #000;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            margin: 12px 0;
+        }
+
+        .message-content code {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+        }
+
+        .message-content :not(pre) > code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .message-content ul, .message-content ol {
+            margin-left: 20px;
+            margin-bottom: 1em;
+        }
+
+        .message-content blockquote {
+            border-left: 3px solid var(--border-color);
+            padding-left: 16px;
+            margin: 12px 0;
+            color: var(--text-secondary);
         }
 
         .cursor {
             display: inline-block;
-            width: 2px;
-            height: 1.2em;
-            background: #8b5cf6;
-            margin-left: 2px;
-            animation: blink 0.8s infinite;
+            width: 8px;
+            height: 20px;
+            background: var(--text-primary);
+            margin-left: 4px;
+            animation: blink 1s infinite;
             vertical-align: text-bottom;
         }
 
@@ -97,181 +243,392 @@
             51%, 100% { opacity: 0; }
         }
 
+        /* 输入区域 */
+        .input-wrapper {
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .input-container {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+        }
+
         .input-area {
             display: flex;
+            align-items: flex-end;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            padding: 12px;
             gap: 12px;
+            transition: border-color 0.2s;
+        }
+
+        .input-area:focus-within {
+            border-color: var(--text-secondary);
         }
 
         #userInput {
             flex: 1;
-            padding: 14px 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 28px;
-            background: rgba(255, 255, 255, 0.05);
-            color: #fff;
-            font-size: 1rem;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 16px;
             outline: none;
-            transition: all 0.3s;
+            resize: none;
+            max-height: 200px;
+            overflow-y: auto;
+            line-height: 1.5;
         }
 
-        #userInput:focus {
-            border-color: #8b5cf6;
-            background: rgba(139, 92, 246, 0.1);
+        #userInput::placeholder {
+            color: var(--text-secondary);
         }
 
         #sendBtn {
-            padding: 14px 28px;
-            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-            color: #fff;
+            width: 32px;
+            height: 32px;
+            background: transparent;
             border: none;
-            border-radius: 28px;
-            font-size: 1rem;
-            font-weight: 500;
+            border-radius: 6px;
             cursor: pointer;
-            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            color: var(--text-secondary);
         }
 
-        #sendBtn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+        #sendBtn:not(:disabled):hover {
+            background: var(--hover-bg);
         }
 
         #sendBtn:disabled {
-            opacity: 0.5;
+            opacity: 0.3;
             cursor: not-allowed;
-            transform: none;
+        }
+
+        #sendBtn.active {
+            color: var(--text-primary);
+        }
+
+        /* 调试面板 */
+        .debug-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: all 0.2s;
+        }
+
+        .debug-toggle:hover {
+            background: var(--hover-bg);
         }
 
         .debug-panel {
-            margin-top: 12px;
-            padding: 12px;
-            background: rgba(0, 0, 0, 0.3);
+            position: fixed;
+            bottom: 70px;
+            right: 20px;
+            width: 400px;
+            max-height: 300px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
             border-radius: 8px;
-            font-family: 'Consolas', monospace;
-            font-size: 0.75rem;
-            max-height: 150px;
-            overflow-y: auto;
+            overflow: hidden;
+            z-index: 999;
+            display: none;
         }
 
-        .debug-panel .chunk {
-            color: #06b6d4;
+        .debug-panel.active {
+            display: block;
+        }
+
+        .debug-header {
+            padding: 8px 12px;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .debug-content {
+            padding: 8px;
+            overflow-y: auto;
+            max-height: 252px;
+            font-family: 'Consolas', monospace;
+            font-size: 11px;
+        }
+
+        .debug-item {
+            padding: 4px 8px;
             margin-bottom: 4px;
-            padding: 4px;
-            background: rgba(6, 182, 212, 0.1);
+            background: rgba(25, 195, 125, 0.1);
+            border-radius: 4px;
+            color: var(--accent-color);
+            word-break: break-all;
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                height: 100%;
+                z-index: 1000;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+        }
+
+        /* 滚动条美化 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
             border-radius: 4px;
         }
 
-        .meta-info {
-            margin-top: 8px;
-            font-size: 0.75rem;
-            color: #71717a;
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🤖 RAG Chat Assistant</h1>
-            <div style="margin-top: 12px;">
-                <label style="color: #a1a1aa; font-size: 0.9rem; margin-right: 12px;">选择接口:</label>
-                <select id="apiSelect" style="padding: 8px 16px; background: rgba(255, 255, 255, 0.1); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; cursor: pointer;">
-                    <option value="/chat/stream">POST /chat/stream (updates模式)</option>
-                    <option value="/chat/messages">POST /chat/messages (messages模式)</option>
-                </select>
+    <div class="app-container">
+        <!-- 侧边栏 -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <button class="new-chat-btn" id="newChatBtn">
+                    <span>➕</span>
+                    <span>新对话</span>
+                </button>
             </div>
-        </header>
+            <div class="sidebar-content">
+                <!-- 对话历史可以在这里添加 -->
+            </div>
+            <div class="sidebar-footer">
+                <div class="settings-section">
+                    <label class="settings-label">接口模式</label>
+                    <select id="apiSelect" class="api-select">
+                        <option value="/chat/stream">Updates模式 (累积式)</option>
+                        <option value="/chat/messages">Messages模式 (增量式)</option>
+                    </select>
+                </div>
+            </div>
+        </aside>
 
-        <div class="chat-container" id="chatContainer"></div>
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <header class="chat-header">
+                <div class="model-indicator">
+                    <span id="modelName">ChatGPT</span>
+                </div>
+            </header>
 
-        <div class="input-area">
-            <input type="text" id="userInput" placeholder="输入消息..." autocomplete="off">
-            <button id="sendBtn">发送</button>
-        </div>
+            <div class="chat-container" id="chatContainer">
+                <!-- 欢迎消息 -->
+                <div class="message-wrapper assistant">
+                    <div class="message">
+                        <div class="avatar assistant">🤖</div>
+                        <div class="message-content">
+                            <p>你好！我是基于 LangChain 的 RAG 助手。有什么可以帮助你的吗？</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-        <details>
-            <summary style="color: #71717a; cursor: pointer; margin-top: 12px;">调试面板</summary>
-            <div class="debug-panel" id="debugPanel"></div>
-        </details>
+            <div class="input-wrapper">
+                <div class="input-container">
+                    <div class="input-area">
+                        <textarea id="userInput" placeholder="发送消息..." rows="1"></textarea>
+                        <button id="sendBtn" disabled>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 调试面板 -->
+    <div class="debug-toggle" id="debugToggle">🐛</div>
+    <div class="debug-panel" id="debugPanel">
+        <div class="debug-header">调试日志</div>
+        <div class="debug-content" id="debugContent"></div>
     </div>
 
     <script>
+        // 初始化 Marked.js 和 Emoji
+        const emoji = new EmojiConvertor();
+        emoji.replace_mode = 'unified';
+        emoji.allow_native = true;
+
+        // 配置 marked.js
+        marked.setOptions({
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    return hljs.highlight(code, { language: lang }).value;
+                }
+                return hljs.highlightAuto(code).value;
+            },
+            breaks: true,
+            gfm: true
+        });
+
+        // DOM 元素
         const chatContainer = document.getElementById('chatContainer');
         const userInput = document.getElementById('userInput');
         const sendBtn = document.getElementById('sendBtn');
+        const debugContent = document.getElementById('debugContent');
         const debugPanel = document.getElementById('debugPanel');
+        const debugToggle = document.getElementById('debugToggle');
+        const newChatBtn = document.getElementById('newChatBtn');
+        const apiSelect = document.getElementById('apiSelect');
 
+        // 调试面板切换
+        debugToggle.addEventListener('click', () => {
+            debugPanel.classList.toggle('active');
+        });
+
+        // 新对话
+        newChatBtn.addEventListener('click', () => {
+            if (confirm('确定要开始新对话吗？当前对话将被清除。')) {
+                chatContainer.innerHTML = `
+                    <div class="message-wrapper assistant">
+                        <div class="message">
+                            <div class="avatar assistant">🤖</div>
+                            <div class="message-content">
+                                <p>你好！我是基于 LangChain 的 RAG 助手。有什么可以帮助你的吗？</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                debugContent.innerHTML = '';
+            }
+        });
+
+        // 添加消息
         function addMessage(content, role, isStreaming = false) {
-            const div = document.createElement('div');
-            div.className = `message ${role}`;
-            div.innerHTML = `
-                <div class="bubble">
-                    <span class="content">${content}</span>
-                    ${isStreaming ? '<span class="cursor"></span>' : ''}
+            const wrapper = document.createElement('div');
+            wrapper.className = `message-wrapper ${role}`;
+            
+            const avatarEmoji = role === 'user' ? '👤' : '🤖';
+            const processedContent = role === 'assistant' ? content : escapeHtml(content);
+            
+            wrapper.innerHTML = `
+                <div class="message">
+                    <div class="avatar ${role}">${avatarEmoji}</div>
+                    <div class="message-content">
+                        ${processedContent}
+                        ${isStreaming ? '<span class="cursor"></span>' : ''}
+                    </div>
                 </div>
             `;
-            chatContainer.appendChild(div);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-            return div;
+            
+            chatContainer.appendChild(wrapper);
+            scrollToBottom();
+            return wrapper;
         }
 
-        function updateMessage(msgDiv, content, isComplete = false, metadata = null) {
-            const contentSpan = msgDiv.querySelector('.content');
-            const cursor = msgDiv.querySelector('.cursor');
+        // 更新消息
+        function updateMessage(msgWrapper, content, isComplete = false) {
+            const contentDiv = msgWrapper.querySelector('.message-content');
+            const cursor = contentDiv.querySelector('.cursor');
             
-            contentSpan.textContent = content;
+            // 处理 Emoji 和 Markdown
+            const emojiProcessed = emoji.replace_colons(content);
+            const htmlContent = marked.parse(emojiProcessed);
             
-            if (isComplete && cursor) {
-                cursor.remove();
-                if (metadata) {
-                    const metaDiv = document.createElement('div');
-                    metaDiv.className = 'meta-info';
-                    metaDiv.textContent = `模型: ${metadata.model} | Tokens: ${metadata.tokens}`;
-                    msgDiv.querySelector('.bubble').appendChild(metaDiv);
+            if (cursor) {
+                contentDiv.innerHTML = htmlContent;
+                if (!isComplete) {
+                    contentDiv.innerHTML += '<span class="cursor"></span>';
+                } else {
+                    // 完成后高亮代码
+                    contentDiv.querySelectorAll('pre code').forEach((block) => {
+                        hljs.highlightElement(block);
+                    });
                 }
+            } else {
+                contentDiv.innerHTML = htmlContent;
             }
             
+            scrollToBottom();
+        }
+
+        // HTML 转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 滚动到底部
+        function scrollToBottom() {
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        function logDebug(text) {
+        // 调试日志
+        function logDebug(text, type = 'info') {
             const div = document.createElement('div');
-            div.className = 'chunk';
+            div.className = 'debug-item';
             div.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
-            debugPanel.appendChild(div);
-            debugPanel.scrollTop = debugPanel.scrollHeight;
+            debugContent.appendChild(div);
+            debugContent.scrollTop = debugContent.scrollHeight;
         }
 
+        // 提取内容（从 updates 模式的响应中）
         function extractContent(messageStr) {
-            const contentMatch = messageStr.match(/content='([^']*)'/s) || messageStr.match(/content="([^"]*)"/s);
-            if (contentMatch) return contentMatch[1];
+            if (typeof messageStr === 'string') {
+                const contentMatch = messageStr.match(/content='([^']*)'/s) || 
+                                   messageStr.match(/content="([^"]*)"/s);
+                if (contentMatch) return contentMatch[1];
+            }
             return '';
         }
 
-        function extractMetadata(messageStr) {
-            const modelMatch = messageStr.match(/model_name='([^']*)'/)
-            const tokensMatch = messageStr.match(/total_tokens': (\d+)/);
-            const finishMatch = messageStr.match(/finish_reason': '([^']*)'/)
-            
-            return {
-                model: modelMatch ? modelMatch[1] : 'unknown',
-                tokens: tokensMatch ? tokensMatch[1] : '0',
-                finishReason: finishMatch ? finishMatch[1] : null
-            };
-        }
-
+        // 发送消息
         async function sendMessage() {
             const message = userInput.value.trim();
             if (!message) return;
 
-            const apiEndpoint = document.getElementById('apiSelect').value;
+            const apiEndpoint = apiSelect.value;
             
             userInput.value = '';
             sendBtn.disabled = true;
+            adjustTextareaHeight();
 
+            // 添加用户消息
             addMessage(message, 'user');
+            
+            // 添加助手消息（流式）
             const assistantMsg = addMessage('', 'assistant', true);
             
-            logDebug(`开始SSE连接... (接口: ${apiEndpoint})`);
+            logDebug(`开始请求: ${apiEndpoint}`);
 
             try {
                 if (apiEndpoint === '/chat/messages') {
@@ -280,8 +637,8 @@
                     await handleUpdatesAPI(message, assistantMsg);
                 }
             } catch (error) {
-                logDebug(`错误: ${error.message}`);
-                updateMessage(assistantMsg, `错误: ${error.message}`, true);
+                logDebug(`错误: ${error.message}`, 'error');
+                updateMessage(assistantMsg, `❗ 错误: ${error.message}`, true);
                 console.error('Error:', error);
             }
 
@@ -289,7 +646,7 @@
             userInput.focus();
         }
 
-        // 处理 /chat/messages 接口（增量式）
+        // 处理 Messages API (增量式)
         async function handleMessagesAPI(message, assistantMsg) {
             const response = await fetch('http://localhost:8080/chat/messages', {
                 method: 'POST',
@@ -298,6 +655,10 @@
                 },
                 body: JSON.stringify({ question: message })
             });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
             
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
@@ -318,7 +679,7 @@
                         const dataStr = line.slice(6);
                         
                         if (dataStr === '[DONE]') {
-                            logDebug('✅ messages模式流式完成');
+                            logDebug('✅ Messages模式完成');
                             updateMessage(assistantMsg, fullText, true);
                             return;
                         }
@@ -326,13 +687,11 @@
                         try {
                             chunkCount++;
                             const data = JSON.parse(dataStr);
-                            logDebug(`Chunk #${chunkCount} 收到 - messages模式`);
-                            console.log('Messages chunk:', data);
+                            logDebug(`Chunk #${chunkCount}`);
                             
                             if (data.text) {
                                 fullText += data.text;
                                 updateMessage(assistantMsg, fullText, false);
-                                logDebug(`✅ 文本追加: "${data.text}"`);
                             }
                         } catch(e) {
                             logDebug(`JSON解析错误: ${e.message}`);
@@ -341,9 +700,14 @@
                     }
                 }
             }
+            
+            // 如果没有收到 [DONE]，确保最后渲染
+            if (fullText) {
+                updateMessage(assistantMsg, fullText, true);
+            }
         }
 
-        // 处理 /chat/stream 接口（累积式）
+        // 处理 Updates API (累积式)
         async function handleUpdatesAPI(message, assistantMsg) {
             const response = await fetch('http://localhost:8080/chat/stream', {
                 method: 'POST',
@@ -353,12 +717,15 @@
                 body: JSON.stringify({ question: message })
             });
             
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
 
             let buffer = '';
             let lastContent = '';
-            let metadata = null;
             let chunkCount = 0;
 
             while (true) {
@@ -376,33 +743,19 @@
                         
                         try {
                             const data = JSON.parse(jsonStr);
-                            
-                            // 记录 chunk 的详细信息
-                            const chunkKeys = Object.keys(data.data || {});
-                            logDebug(`Chunk #${chunkCount} 收到 - 类型: ${chunkKeys.join(', ')}`);
-                            console.log('Updates chunk:', data);
+                            logDebug(`Chunk #${chunkCount}`);
 
-                            // 尝试从不同位置提取消息
+                            // 提取消息
                             const messages = data.data?.messages || data.data?.model?.messages;
                             
                             if (messages && messages.length > 0) {
                                 const lastMessage = messages[messages.length - 1];
                                 const content = extractContent(lastMessage);
-                                const meta = extractMetadata(lastMessage);
                                 
                                 if (content && content !== lastContent) {
                                     lastContent = content;
-                                    metadata = meta;
-                                    
-                                    updateMessage(assistantMsg, content, meta.finishReason === 'stop', meta);
-                                    logDebug(`✅ 内容更新: "${content.substring(0, 30)}..."`);
-                                } else if (content === lastContent) {
-                                    logDebug(`⏭️ 内容未变化，跳过更新`);
-                                } else {
-                                    logDebug(`⚠️ 未找到内容`);
+                                    updateMessage(assistantMsg, content, false);
                                 }
-                            } else {
-                                logDebug(`ℹ️ 此 chunk 不包含消息内容`);
                             }
                         } catch (e) {
                             logDebug(`JSON解析错误: ${e.message}`);
@@ -413,17 +766,40 @@
             }
 
             if (lastContent) {
-                updateMessage(assistantMsg, lastContent, true, metadata);
+                updateMessage(assistantMsg, lastContent, true);
+                logDebug(`✅ Updates模式完成 (共${chunkCount}个chunks)`);
             }
-            
-            logDebug(`流式传输完成，共 ${chunkCount} 个chunks`);
         }
 
-        sendBtn.addEventListener('click', sendMessage);
-        userInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage();
+        // 自动调整 textarea 高度
+        function adjustTextareaHeight() {
+            userInput.style.height = 'auto';
+            userInput.style.height = Math.min(userInput.scrollHeight, 200) + 'px';
+        }
+
+        // 事件监听
+        userInput.addEventListener('input', () => {
+            adjustTextareaHeight();
+            sendBtn.disabled = !userInput.value.trim();
+            if (userInput.value.trim()) {
+                sendBtn.classList.add('active');
+            } else {
+                sendBtn.classList.remove('active');
+            }
         });
 
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (!sendBtn.disabled) {
+                    sendMessage();
+                }
+            }
+        });
+
+        sendBtn.addEventListener('click', sendMessage);
+
+        // 初始化
         userInput.focus();
     </script>
 </body>
