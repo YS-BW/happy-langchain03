@@ -2,8 +2,11 @@ from langchain.agents import create_agent
 import os
 from dotenv import load_dotenv
 from langchain_deepseek import ChatDeepSeek
+from backend.config.schema.agent_state import AgentState
 from backend.core.tools.tools import retrieve_docs
 from backend.core.prompts import AGENT_PROMPT
+from langgraph.checkpoint.memory import InMemorySaver 
+
 load_dotenv()
 
 llm = ChatDeepSeek(
@@ -12,10 +15,14 @@ llm = ChatDeepSeek(
 
 tools = [retrieve_docs]
 
+checkpointer = InMemorySaver()
+
 
 agent = create_agent(
     model=llm,
     tools=tools,
     system_prompt=AGENT_PROMPT,
+    state_schema = AgentState,
+    checkpointer=checkpointer,
     # middleware=middleware
 )

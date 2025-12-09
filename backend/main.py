@@ -25,35 +25,35 @@ app.add_middleware(
 )
 
 
-@app.post("/chat/stream")
+# @app.post("/chat/stream")
 
-async def chat_stream(request: ChatRequest):
-    """流式聊天接口-updates"""
+# async def chat_stream(request: ChatRequest):
+#     """流式聊天接口-updates"""
     
-    async def event_stream() -> AsyncGenerator[str, None]:
-        async for chunk in agent.astream(
-            {"messages": [{"role": "user", "content": request.question}]},
-            stream_mode="updates",
-            stream_subgraphs=True
-        ):
+#     async def event_stream() -> AsyncGenerator[str, None]:
+#         async for chunk in agent.astream(
+#             {"messages": [{"role": "user", "content": request.question}]},
+#             stream_mode="updates",
+#             stream_subgraphs=True
+#         ):
             
-            chunk_data = {
-                "type": "chunk",
-                "data": chunk,
-                "timestamp": asyncio.get_event_loop().time()
-            }
-            yield f"data: {json.dumps(chunk_data, ensure_ascii=False, default=str)}\n\n"
+#             chunk_data = {
+#                 "type": "chunk",
+#                 "data": chunk,
+#                 "timestamp": asyncio.get_event_loop().time()
+#             }
+#             yield f"data: {json.dumps(chunk_data, ensure_ascii=False, default=str)}\n\n"
   
 
-    return StreamingResponse(
-        event_stream(),
-        media_type="text/event-stream",  # ✅ SSE标准格式
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
-        }
-    )
+#     return StreamingResponse(
+#         event_stream(),
+#         media_type="text/event-stream",  # ✅ SSE标准格式
+#         headers={
+#             "Cache-Control": "no-cache",
+#             "Connection": "keep-alive",
+#             "X-Accel-Buffering": "no"
+#         }
+#     )
 """
   {
   "type": "chunk",
@@ -66,10 +66,21 @@ async def chat_stream(request: ChatRequest):
 """    
 @app.post("/chat/messages")
 async def chat_stream(request: ChatRequest):
+    
+    input_dict = {
+        "messages": [msg.model_dump() for msg in request.messages]
+    }
+    
+    # 构建配置参数
+    config_dict = {}
+    if request.configurable:
+        config_dict["configurable"] = request.configurable.model_dump(exclude_none=True)
+    
     async def gen():
         # ✅ astream() 返回异步迭代器
         async for token_chunk, metadata in agent.astream(
-            {"messages": [{"role": "user", "content": request.question}]},
+            input_dict,
+            config=config_dict if config_dict else None,
             stream_mode="messages"
         ):
             node = metadata['langgraph_node']
