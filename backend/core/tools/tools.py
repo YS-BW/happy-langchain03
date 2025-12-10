@@ -1,6 +1,8 @@
 from langchain.tools import tool
 from backend.rag import get_vectorstore
 from backend.config.schema.retrieve import RetrieveResult, Citation
+import os
+from langchain_tavily import TavilySearch
 @tool
 def retrieve_docs(query: str):
     """检索文档,生成内容
@@ -42,3 +44,33 @@ Document(
     }
 )
 """
+
+@tool
+def web_search(query: str):
+    """通过网络搜索获取最新信息
+    
+    Args:
+        query: 搜索查询字符串
+        
+    Returns:
+        RetrieveResult: 封装的搜索结果
+    """
+    tavily_search = TavilySearch(max_results=5, topic="general")
+    results = tavily_search.invoke({"query": query})
+        
+        # 封装成RetrieveResult格式
+    # citations: list[Citation] = []
+    # for idx, res in enumerate(results, 1):
+    #         citations.append(
+    #             Citation(
+    #                 id=idx,
+    #                 title=res.get('title', '无标题'),
+    #                 source=res.get('url', '未知来源'),
+    #                 snippet=res.get('content', '')[:500] if res.get('content') else None,
+    #             )
+    #         )
+        
+    # return RetrieveResult(citations=citations)
+    return results
+  
+__all__ = ['retrieve_docs', 'web_search']
