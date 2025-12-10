@@ -2,7 +2,7 @@
 
 基于 LangChain 构建的智能聊天代理系统，具备本地知识库检索和网络搜索能力。本项目展示了如何利用 LangGraph 和 Agent 技术构建一个能够自主决定何时使用工具的智能对话系统。
 
-![项目预览](frontend/preview.png)
+![项目预览](![alt text](image.png))
 
 ## 目录
 
@@ -128,18 +128,25 @@ python -m http.server 3000
 
 ## 实现逻辑
 
-```mermaid
-graph TD
-    A[用户提问] --> B{问题类型判断}
-    B -->|需要本地知识| C[调用 retrieve_docs 工具]
-    B -->|需要最新信息| D[调用 web_search 工具]
-    B -->|通用问题| E[直接回答]
-    C --> F[检索向量数据库]
-    D --> G[网络搜索]
-    F --> H[整合检索结果]
-    G --> H
-    H --> I[生成带引用的回答]
-    I --> J[流式返回给前端]
+```mermaid  theme={null}
+graph LR
+    A[User Input / Question] --> B["Agent (LLM)"]
+    B --> C{Need external info?}
+    C -- Yes --> D["Search using tool(s)"]
+    D --> H{Enough to answer?}
+    H -- No --> B
+    H -- Yes --> I[Generate final answer]
+    C -- No --> I
+    I --> J[Return to user]
+
+    %% Dark-mode friendly styling
+    classDef startend fill:#2e7d32,stroke:#1b5e20,stroke-width:2px,color:#fff
+    classDef decision fill:#f9a825,stroke:#f57f17,stroke-width:2px,color:#000
+    classDef process fill:#1976d2,stroke:#0d47a1,stroke-width:1.5px,color:#fff
+
+    class A,J startend
+    class B,D,I process
+    class C,H decision
 ```
 
 系统核心流程：
@@ -173,6 +180,3 @@ Agent 能够自主判断何时使用工具以及使用哪个工具，无需用�
 ### 5. 多样化的检索能力
 同时支持本地知识库和网络搜索，满足不同类型问题的需求。
 
-## 许可证
-
-本项目采用 MIT 许可证。详情请见 [LICENSE](LICENSE) 文件。
