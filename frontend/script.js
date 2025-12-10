@@ -3,6 +3,8 @@ let currentThreadId = null;
 let chatHistory = [];
 let isGenerating = false;
 let isSidebarCollapsed = false;
+let currentUserMessageElement = null; // 当前用户提问的DOM元素
+let userScrolledUp = false; // 用户是否向上滚动了
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
@@ -69,17 +71,57 @@ function toggleTheme() {
 // 切换侧边栏
 function toggleSidebar() {
     const sidebar = document.querySelector('.sidebar');
-    const icon = document.getElementById('sidebarToggleIcon');
+    const mainChat = document.querySelector('.main-chat');
+    const floatingControls = document.getElementById('floatingControls');
     
     isSidebarCollapsed = !isSidebarCollapsed;
     
     if (isSidebarCollapsed) {
         sidebar.classList.add('collapsed');
-        icon.className = 'fa-solid fa-chevron-right';
+        mainChat.classList.add('sidebar-collapsed');
+        floatingControls.classList.add('visible');
     } else {
         sidebar.classList.remove('collapsed');
-        icon.className = 'fa-solid fa-chevron-left';
+        mainChat.classList.remove('sidebar-collapsed');
+        floatingControls.classList.remove('visible');
     }
+}
+
+// 滚动到用户提问位置
+function scrollToUserQuestion() {
+    if (currentUserMessageElement) {
+        userScrolledUp = true; // 标记用户主动滚动
+        currentUserMessageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+// 显示生成中气泡
+function showGeneratingBubble(text) {
+    const bubble = document.getElementById('generatingBubble');
+    const textEl = document.getElementById('generatingText');
+    textEl.textContent = text.length > 20 ? text.slice(0, 20) + '...' : text;
+    bubble.classList.add('visible');
+}
+
+// 隐藏生成中气泡
+function hideGeneratingBubble() {
+    const bubble = document.getElementById('generatingBubble');
+    bubble.classList.remove('visible');
+}
+
+// 智能滚动 - 只有在底部时才自动滚动
+function smartScroll() {
+    if (!userScrolledUp) {
+        const container = document.getElementById('chatContainer');
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+// 检查用户是否在底部
+function isNearBottom() {
+    const container = document.getElementById('chatContainer');
+    const threshold = 100; // 距离底部100px内认为在底部
+    return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
 }
 
 // 生成 UUID (用于 Thread ID)
@@ -110,12 +152,45 @@ function renderSidebar() {
     const list = document.getElementById('historyList');
     list.innerHTML = '';
     chatHistory.forEach(session => {
-        const div = document.createElement('div');
-        div.className = `history-item ${session.id === currentThreadId ? 'active' : ''}`;
-        div.textContent = session.title || 'New Chat';
-        div.onclick = () => switchThread(session.id);
-        list.appendChild(div);
+        const itemDiv = document.createElement('div');
+        itemDiv.className = `history-item ${session.id === currentThreadId ? 'active' : ''}`;
+        
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'history-item-title';
+        titleSpan.textContent = session.title || 'New Chat';
+        titleSpan.onclick = () => switchThread(session.id);
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'history-item-delete';
+        deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            deleteChat(session.id);
+        };
+        
+        itemDiv.appendChild(titleSpan);
+        itemDiv.appendChild(deleteBtn);
+        list.appendChild(itemDiv);
     });
+}
+
+// 删除对话历史
+function deleteChat(id) {
+    if (confirm('确定要删除这个对话吗？')) {
+        chatHistory = chatHistory.filter(session => session.id !== id);
+        localStorage.setItem('chat_sessions', JSON.stringify(chatHistory));
+        
+        // 如果删除的是当前对话，或者已经没有对话了，则切换或创建新对话
+        if (chatHistory.length === 0) {
+            // 删除了最后一个，自动创建新聊天
+            createNewChat();
+        } else if (id === currentThreadId) {
+            // 删除的是当前对话，切换到第一个
+            switchThread(chatHistory[0].id);
+        }
+        
+        renderSidebar();
+    }
 }
 
 // 切换对话
@@ -158,7 +233,12 @@ function switchThread(id) {
 
 // 新建对话
 function createNewChat() {
-    if (isGenerating) return;
+    // 如果正在生成，先停止
+    if (isGenerating) {
+        isGenerating = false;
+        hideGeneratingBubble();
+    }
+    
     const newId = generateUUID();
     const newSession = {
         id: newId,
@@ -170,6 +250,7 @@ function createNewChat() {
     localStorage.setItem('chat_sessions', JSON.stringify(chatHistory));
     
     switchThread(newId);
+    renderSidebar();
 }
 
 // 添加消息到 DOM
@@ -200,12 +281,18 @@ function appendMessageToDOM(role, content, isHistory = false) {
     msgDiv.innerHTML = `
         <div class="message-content">
             <div class="message-avatar">${icon}</div>
-            <div class="message-text">${htmlContent}</div>
+            <div class="message-text">
+                <div class="message-bubble">${htmlContent}</div>
+            </div>
         </div>
     `;
     
     container.appendChild(msgDiv);
-    container.scrollTop = container.scrollHeight;
+    
+    // 只有在不是生成中或用户没有主动滚动时才自动滚动
+    if (!isGenerating || !userScrolledUp) {
+        container.scrollTop = container.scrollHeight;
+    }
     
     // 针对历史消息，确保代码高亮
     if (isHistory) {
@@ -214,7 +301,11 @@ function appendMessageToDOM(role, content, isHistory = false) {
         });
     }
 
-    return msgDiv.querySelector('.message-text'); // 返回文本容器引用
+    // 返回消息元素和气泡元素
+    return {
+        element: msgDiv,
+        bubble: msgDiv.querySelector('.message-bubble')
+    };
 }
 
 // 发送示例消息
@@ -234,11 +325,16 @@ async function sendMessage() {
     
     isGenerating = true;
     sendBtn.disabled = true;
+    userScrolledUp = false; // 重置滚动状态
 
     // 添加用户消息到界面
-    appendMessageToDOM('user', text, true);
+    const userMsg = appendMessageToDOM('user', text, true);
+    currentUserMessageElement = userMsg.element; // 保存用户消息元素引用
     input.value = '';
     input.style.height = 'auto'; 
+    
+    // 显示生成中气泡
+    showGeneratingBubble(text);
     
     const sessionIndex = chatHistory.findIndex(s => s.id === currentThreadId);
     if (sessionIndex !== -1) {
@@ -250,7 +346,8 @@ async function sendMessage() {
     }
 
     // 创建助手消息容器
-    const aiTextContainer = appendMessageToDOM('assistant', '');
+    const aiMsg = appendMessageToDOM('assistant', '');
+    const aiTextContainer = aiMsg.bubble;
     const cursorHTML = '<span class="cursor">|</span>'; 
     aiTextContainer.innerHTML = cursorHTML;
     
@@ -314,9 +411,8 @@ async function sendMessage() {
                                 }
                             });
                             
-                            // 保持滚动到底部
-                            const container = document.getElementById('chatContainer');
-                            container.scrollTop = container.scrollHeight;
+                            // 智能滚动 - 只有用户没有向上滚动时才自动滚动
+                            smartScroll();
                         }
                     } catch (e) {
                         console.error("❌ JSON 解析错误:", dataStr, e);
@@ -342,6 +438,11 @@ async function sendMessage() {
     } finally {
         isGenerating = false;
         sendBtn.disabled = false;
+        userScrolledUp = false;
+        currentUserMessageElement = null;
+        
+        // 隐藏生成中气泡
+        hideGeneratingBubble();
         
         // 确保光标被移除并最终渲染
         aiTextContainer.innerHTML = marked.parse(fullResponse);
@@ -356,6 +457,8 @@ async function sendMessage() {
 // 辅助：输入框回车发送和自动高度
 function setupEventListeners() {
     const input = document.getElementById('userInput');
+    const container = document.getElementById('chatContainer');
+    
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -367,5 +470,23 @@ function setupEventListeners() {
     input.addEventListener('input', function() {
         this.style.height = 'auto';
         this.style.height = (this.scrollHeight) + 'px';
+    });
+    
+    // 监听滚轮事件 - 用户主动滚动时立即标记
+    container.addEventListener('wheel', (e) => {
+        if (isGenerating && e.deltaY < 0) {
+            // 用户向上滚动
+            userScrolledUp = true;
+        }
+    });
+    
+    // 监听滚动事件 - 检测用户是否回到底部
+    container.addEventListener('scroll', () => {
+        if (isGenerating && userScrolledUp) {
+            // 如果用户回到了底部，重新开启自动滚动
+            if (isNearBottom()) {
+                userScrolledUp = false;
+            }
+        }
     });
 }

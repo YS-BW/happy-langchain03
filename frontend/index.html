@@ -11,6 +11,11 @@
 <body>
     <div class="app-container">
         <div class="sidebar">
+            <div class="sidebar-header">
+                <button class="sidebar-collapse-btn" onclick="toggleSidebar()" title="收起侧边栏">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+            </div>
             <button class="new-chat-btn" onclick="createNewChat()">
                 <i class="fa-solid fa-plus"></i>
                 新聊天
@@ -23,15 +28,27 @@
                     <i class="fa-solid fa-moon" id="themeIcon"></i>
                     <span id="themeText">深色模式</span>
                 </button>
-                <button class="control-btn" onclick="toggleSidebar()">
-                    <i class="fa-solid fa-chevron-left" id="sidebarToggleIcon"></i>
-                    <span>收起侧边栏</span>
-                </button>
             </div>
             <div class="user-profile">
                 <div class="avatar">U</div>
                 <span>User</span>
             </div>
+        </div>
+
+        <!-- 收起时的浮动控制气泡 -->
+        <div class="floating-controls" id="floatingControls">
+            <button class="floating-btn" onclick="toggleSidebar()" title="展开侧边栏">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+            <button class="floating-btn" onclick="createNewChat()" title="新聊天">
+                <i class="fa-solid fa-plus"></i>
+            </button>
+        </div>
+
+        <!-- 生成中的浮动提示气泡 -->
+        <div class="generating-bubble" id="generatingBubble" onclick="scrollToUserQuestion()">
+            <span class="generating-text" id="generatingText"></span>
+            <i class="fa-solid fa-arrow-up"></i>
         </div>
 
         <div class="main-chat">
@@ -63,7 +80,7 @@
                         <i class="fa-regular fa-paper-plane"></i>
                     </button>
                 </div>
-                <div class="disclaimer">ChatGPT 也可能会犯错。请核查重要信息。</div>
+                <div class="disclaimer">AI 也可能会犯错。请核查重要信息。</div>
             </div>
         </div>
     </div>

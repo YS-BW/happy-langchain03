@@ -1,12 +1,11 @@
-/* 默认浅色主题 */
+/* 浅色主题 - 统一消息背景色 */
 :root {
     --bg-color: #ffffff;
     --sidebar-bg: #f7f7f8;
     --input-bg: #ffffff;
     --text-color: #333333;
-    --assistant-bg: #f7f7f8;
+    --message-bg: #ffffff; /* 统一的消息背景色 */
     --border-color: #e5e5e5;
-    --user-bg: #ffffff;
     --sidebar-hover: #e5e5e5;
     --sidebar-active: #e5e5e5;
     --input-border: #e5e5e5;
@@ -23,17 +22,21 @@
     --table-border: #e5e5e5;
     --table-header: #f7f7f8;
     --table-row-even: #f7f7f8;
+    /* 消息气泡颜色 */
+    --user-bubble-bg: #5436da;
+    --user-bubble-text: #ffffff;
+    --assistant-bubble-bg: #f0f0f0;
+    --assistant-bubble-text: #333333;
 }
 
-/* 深色主题 */
+/* 深色主题 - 统一消息背景色 */
 [data-theme="dark"] {
     --bg-color: #1a1a1a;
     --sidebar-bg: #2d2d2d;
     --input-bg: #333333;
     --text-color: #ffffff;
-    --assistant-bg: #2d2d2d;
+    --message-bg: #1a1a1a; /* 统一的消息背景色 */
     --border-color: #444444;
-    --user-bg: #1a1a1a;
     --sidebar-hover: #3d3d3d;
     --sidebar-active: #3d3d3d;
     --input-border: #444444;
@@ -50,6 +53,11 @@
     --table-border: #444444;
     --table-header: #3d3d3d;
     --table-row-even: #2d2d2d;
+    /* 深色主题下的消息气泡颜色 */
+    --user-bubble-bg: #5436da;
+    --user-bubble-text: #ffffff;
+    --assistant-bubble-bg: #3d3d3d;
+    --assistant-bubble-text: #ffffff;
 }
 
 * {
@@ -59,7 +67,7 @@
 }
 
 body {
-    font-family: 'Söhne', 'ui-sans-serif', 'system-ui', -apple-system', sans-serif;
+    font-family: 'Söhne', 'ui-sans-serif', 'system-ui', '-apple-system', sans-serif;
     background-color: var(--bg-color);
     color: var(--text-color);
     height: 100vh;
@@ -70,6 +78,7 @@ body {
 .app-container {
     display: flex;
     height: 100%;
+    background-color: var(--bg-color);
 }
 
 /* Sidebar */
@@ -82,10 +91,82 @@ body {
     border-right: 1px solid var(--border-color);
     transition: transform 0.3s ease;
     position: relative;
+    flex-shrink: 0;
 }
 
 .sidebar.collapsed {
-    transform: translateX(-240px);
+    transform: translateX(-100%);
+}
+
+/* 浮动控制气泡 */
+.floating-controls {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    display: none; /* 默认隐藏 */
+    gap: 8px;
+    background-color: var(--sidebar-bg);
+    padding: 8px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.floating-controls.visible {
+    display: flex; /* 侧边栏收起时显示 */
+}
+
+.floating-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    color: var(--text-color);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.floating-btn:hover {
+    background-color: var(--sidebar-hover);
+}
+
+.floating-btn i {
+    font-size: 16px;
+}
+
+/* 侧边栏头部 */
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    padding: 5px 0;
+    margin-bottom: 10px;
+}
+
+.sidebar-collapse-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    color: var(--text-color);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.sidebar-collapse-btn:hover {
+    background-color: var(--sidebar-hover);
+}
+
+.sidebar-collapse-btn i {
+    font-size: 16px;
 }
 
 .new-chat-btn {
@@ -127,6 +208,9 @@ body {
     text-overflow: ellipsis;
     color: var(--text-color);
     transition: background-color 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .history-item:hover {
@@ -135,6 +219,26 @@ body {
 
 .history-item.active {
     background-color: var(--sidebar-active);
+}
+
+.history-item-title {
+    flex-grow: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.history-item-delete {
+    color: #ff4444;
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+    padding: 0 5px;
+}
+
+.history-item:hover .history-item-delete {
+    opacity: 1;
 }
 
 .user-profile {
@@ -198,13 +302,66 @@ body {
     display: flex;
     flex-direction: column;
     position: relative;
-    transition: margin-left 0.3s ease;
+    transition: all 0.3s ease;
+}
+
+/* 侧边栏折叠时，聊天区域居中 */
+.main-chat.sidebar-collapsed {
+    margin-left: -260px; /* 补偿侧边栏收起的空间 */
+}
+
+/* 生成中的浮动提示气泡 */
+.generating-bubble {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: none; /* 默认隐藏 */
+    align-items: center;
+    gap: 10px;
+    background-color: var(--user-bubble-bg);
+    color: var(--user-bubble-text);
+    padding: 10px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    z-index: 1000;
+    max-width: 300px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+.generating-bubble:hover {
+    transform: translateX(-50%) scale(1.02);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+.generating-bubble.visible {
+    display: flex;
+}
+
+.generating-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+    font-size: 14px;
+}
+
+.generating-bubble i {
+    font-size: 12px;
+    animation: bounce 1s infinite;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
 }
 
 .chat-container {
     flex: 1;
     overflow-y: auto;
     padding-bottom: 120px;
+    background-color: var(--bg-color); /* 添加背景色以防止深色模式下的白色背景 */
 }
 
 .welcome-screen {
@@ -263,23 +420,16 @@ body {
     color: #8e8ea0;
 }
 
+/* 消息气泡样式 */
 .message {
-    padding: 24px;
-    border-bottom: 1px solid var(--border-color);
+    padding: 24px 10px;
+    background-color: var(--message-bg); /* 统一背景色 */
     animation: fadeIn 0.2s ease-out;
 }
 
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
-}
-
-.message.user {
-    background-color: var(--user-bg);
-}
-
-.message.assistant {
-    background-color: var(--assistant-bg);
 }
 
 .message-content {
@@ -314,43 +464,81 @@ body {
     word-break: break-word;
 }
 
+/* 用户和助手消息气泡 */
+.user .message-content {
+    flex-direction: row-reverse; /* 调整用户消息方向 */
+    justify-content: flex-start; /* 让内容靠右对齐 */
+}
+
+.user .message-text {
+    display: flex;
+    justify-content: flex-end; /* 气泡靠右贴近头像 */
+}
+
+.user .message-bubble {
+    background-color: var(--user-bubble-bg);
+    color: var(--user-bubble-text);
+    border-radius: 18px 4px 18px 18px;
+    padding: 12px 16px;
+    max-width: 80%;
+    word-wrap: break-word;
+    display: inline-block; /* 根据内容自适应宽度 */
+    width: auto; /* 不固定宽度 */
+}
+
+.assistant .message-bubble {
+    background-color: var(--assistant-bubble-bg);
+    color: var(--assistant-bubble-text);
+    border-radius: 4px 18px 18px 18px;
+    padding: 12px 16px;
+    max-width: 80%;
+    word-wrap: break-word;
+    display: inline-block; /* 根据内容自适应宽度 */
+    width: auto; /* 不固定宽度 */
+}
+
+.message-avatar {
+    align-self: flex-end;
+    margin-bottom: 4px;
+}
+
 /* Markdown Styles */
-.message-text h1, .message-text h2, .message-text h3 {
+.message-bubble h1, .message-bubble h2, .message-bubble h3 {
     margin: 16px 0 8px 0;
     font-weight: 600;
     line-height: 1.25;
 }
 
-.message-text h1 {
+.message-bubble h1 {
     font-size: 1.5em;
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 0.3em;
 }
 
-.message-text h2 {
+.message-bubble h2 {
     font-size: 1.25em;
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 0.3em;
 }
 
-.message-text h3 {
+.message-bubble h3 {
     font-size: 1.1em;
 }
 
-.message-text p {
+.message-bubble p {
     margin-bottom: 10px;
 }
 
-.message-text ul, .message-text ol {
+.message-bubble ul, .message-bubble ol {
     padding-left: 2em;
     margin-bottom: 10px;
 }
 
-.message-text li {
+.message-bubble li {
     margin-bottom: 5px;
 }
 
-.message-text pre {
+.message-bubble pre {
     background: var(--code-background);
     padding: 15px;
     border-radius: 5px;
@@ -358,7 +546,7 @@ body {
     margin: 10px 0;
 }
 
-.message-text code {
+.message-bubble code {
     font-family: monospace;
     background-color: var(--code-inline-background);
     padding: 0.2em 0.4em;
@@ -366,38 +554,38 @@ body {
     font-size: 85%;
 }
 
-.message-text pre code {
+.message-bubble pre code {
     background: none;
     padding: 0;
     border-radius: 0;
     font-size: 100%;
 }
 
-.message-text blockquote {
+.message-bubble blockquote {
     border-left: 4px solid var(--blockquote-border);
     padding: 0 1em;
     margin: 10px 0;
     color: #8e8ea0;
 }
 
-.message-text table {
+.message-bubble table {
     border-collapse: collapse;
     width: 100%;
     margin: 10px 0;
 }
 
-.message-text th, .message-text td {
+.message-bubble th, .message-bubble td {
     border: 1px solid var(--table-border);
     padding: 8px 12px;
     text-align: left;
 }
 
-.message-text th {
+.message-bubble th {
     background-color: var(--table-header);
     font-weight: bold;
 }
 
-.message-text tr:nth-child(even) {
+.message-bubble tr:nth-child(even) {
     background-color: var(--table-row-even);
 }
 
@@ -495,10 +683,16 @@ textarea {
     }
     
     .message {
-        padding: 15px;
+        padding: 15px 5px;
     }
     
     .message-content {
-        gap: 15px;
+        gap: 10px;
+        padding: 0 10px;
+    }
+    
+    .user .message-bubble, .assistant .message-bubble {
+        max-width: 85%;
+        padding: 10px 14px;
     }
 }

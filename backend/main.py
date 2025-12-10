@@ -28,6 +28,7 @@ app.add_middleware(
 agent_instance = get_or_create_agent()
 @app.post("/chat/messages")
 async def chat_stream(request: ChatRequest):
+    print(f"\n📨 收到请求: {request}")
     
     input_dict = {
         "messages": [msg.model_dump() for msg in request.messages]
