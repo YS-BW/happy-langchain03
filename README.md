@@ -2,7 +2,7 @@
 
 基于 LangChain 构建的智能聊天代理系统，具备本地知识库检索和网络搜索能力。本项目展示了如何利用 LangGraph 和 Agent 技术构建一个能够自主决定何时使用工具的智能对话系统。
 
-![项目预览](![alt text](image.png))
+![alt text](image.png)
 
 ## 目录
 
